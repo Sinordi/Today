@@ -4,7 +4,7 @@ https://www.udemy.com/course/ios-13-app-development-bootcamp/learn/lecture/10929
 
 1. Если при создании проекта не импортировал CoreData для начала создаем новый файл Core data Data Model
 2. Копируем код внизу этого файла в AppDelegate. Не забываем зменять название в let container = NSPersistentContainer(name: "ИЗМЕНИ МЕНЯ")
-3. Переносим наши классы в файл кор даты (класс из файла Item в DataModel и удаляем Item)
+3. Переносим наши классы в файл кор даты (класс из файла Item в DataModel и удаляем Item (удалять обязательно))
 
 
 

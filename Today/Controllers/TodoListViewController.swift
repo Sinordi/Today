@@ -6,36 +6,22 @@
 //
 
 import UIKit
+import CoreData
+
 
 class TodoListViewController: UITableViewController {
     
-    //путь к файлу, в котором будут хранится данные (сами его называем как хотим и создавать такие файлы для разных категорий)
-    let dataFilePath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first?.appendingPathComponent("Items.plist")
-    
-    
+    //CoreData создаем context. (UIApplication.shared.delegate as! AppDelegate) - тут мы получаем доступ к AppDelegate
+    let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
     
     var itemArray = [Item]()
-    
-    
-    /*
-     №1 (UserDefaults) Используется для сохранения малого кол-ва данных стандартного типа
-     let defaults = UserDefaults.standard
-     Вначале работали с ним, потом используем другой (FileManager)
-     */
     
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        loadItems() //Метод загрузки данных с нашего сохраненного файла
-        
-        // №1 (UserDefaults) Воспроизведение созраненного в памяти устройства массива (грубо говоря)
-    
-        /*
-         if let items = defaults.array(forKey: "ToDoListArray") as? [Item] {
-         itemArray = items
-         }
-         */
+        //Метод загрузки данных с нашего сохраненного файла
+        loadItems()
     }
     
     
@@ -79,13 +65,16 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
         if editingStyle == UITableViewCell.EditingStyle.delete {
+            
+            //CoreData удаляем наш объект в contex (перед тем как удаляем его из массива, иначе crash)
+            context.delete(itemArray[indexPath.row])
+            
             itemArray.remove(at: indexPath.row)
+            
             tableView.deleteRows(at: [indexPath], with: UITableView.RowAnimation.automatic)
             
+            //Сохраняем изменения в contex'e в нашу базу
             saveItems()
-            
-            // №1 (UserDefaults) Сохранение массива в памят устройства (грубо говоря) Только для стандартного типа
-            //            self.defaults.set(self.itemArray, forKey: "ToDoListArray")
         }
     }
     
@@ -98,13 +87,12 @@ class TodoListViewController: UITableViewController {
         
         //Меняет состояние done (используется для галочки (chekmark))
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
-        saveItems() //Здесь этот метод вызываем, чтобы обновить данные о галочке и нашем файле
+        
+        //Здесь этот метод вызываем, чтобы обновить данные о галочке и нашем файле
+        saveItems()
         
         //обновляет таблицу после того, как поменяли состояние done
         tableView.reloadData()
-        
-        // Анимация выбора строки (подсвечивает выбраную строку серым на 1 сек)
-        
         
     }
     
@@ -124,10 +112,10 @@ class TodoListViewController: UITableViewController {
         let action = UIAlertAction(title: "Добавить", style: .default) { (action) in
             if let safeText = textField.text {
                 
-                let newItem = Item()
+                let newItem = Item(context: self.context)
                 
                 newItem.title = safeText
-                
+                newItem.done = false //Это добавили, когда начали использовать CoreData, т.к. в файле нет начального значения (и это сво-во у нас не optional)
                 self.itemArray.append(newItem)
                 self.saveItems() //Вызываем метод для сохранения данных
                 
@@ -155,34 +143,27 @@ class TodoListViewController: UITableViewController {
     
     //MARK: - method for saving and loading data
     
+    
     func saveItems() {
-        let encoder = PropertyListEncoder() //свойство для шифрования данных
         
         //Блок do catch нужен, чтобы зашифровать данные
-        
         do {
-            let data = try encoder.encode(self.itemArray) // Зашировываем данные
-            try data.write(to: self.dataFilePath!) // Записываем их в файл (определили его вначале, можем вывести его (print) и посмотреть путь)
+            try context.save()
         } catch  {
-            print("Error encoding item array, \(error)")
+            print("Error saving context \(error)")
         }
-        
-        // №1 (UserDefaults) Сохранение массива в памят устройства (грубо говоря) Только для стандартного типаСохранение массива в памят устройства (грубо говоря)
-        //self.defaults.set(self.itemArray, forKey: "ToDoListArray")
         
         self.tableView.reloadData()
     }
     
     func loadItems() {
-        if let data = try? Data(contentsOf: dataFilePath!) {
-            let decoder = PropertyListDecoder()
-            do {
-                itemArray = try decoder.decode([Item].self, from: data)
-            } catch {
-                print(error)
-            }
-            
+        let reqest: NSFetchRequest<Item> = Item.fetchRequest()
+        do {
+            itemArray = try context.fetch(reqest)
+        } catch {
+            print("Error fetching data from context \(error)")
         }
+        
     }
 }
 
