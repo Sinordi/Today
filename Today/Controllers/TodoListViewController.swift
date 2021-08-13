@@ -5,6 +5,9 @@
 //  Created by Сергей Кривошапко on 06.08.2021.
 //
 
+
+//aaaaàäæ
+
 import UIKit
 import CoreData
 
@@ -19,6 +22,7 @@ class TodoListViewController: UITableViewController {
     
     override func viewDidLoad() {
         super.viewDidLoad()
+        
         
         //Метод загрузки данных с нашего сохраненного файла
         loadItems()
@@ -156,14 +160,64 @@ class TodoListViewController: UITableViewController {
         self.tableView.reloadData()
     }
     
-    func loadItems() {
-        let reqest: NSFetchRequest<Item> = Item.fetchRequest()
+    //(with request: NSFetchRequest<Item> = Item.fetchRequest()) -  если у нас в качестве аргумента нет ничего, при вызове функции, то используется Item.fetchRequest() (то, что стоит после =)
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+        
+        
+        
         do {
-            itemArray = try context.fetch(reqest)
+            itemArray = try context.fetch(request)
         } catch {
             print("Error fetching data from context \(error)")
         }
+        tableView.reloadData()
+    }
+    
+    
+    
+}
+
+//MARK: - SearchBar methods
+
+extension TodoListViewController:  UISearchBarDelegate {
+    
+    
+// Запускает сортировку, при нажатии на кнопку поиск на клавиатуре
+    
+//    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+//
+//        let request: NSFetchRequest<Item> = Item.fetchRequest()
+//
+//        //title CONTAINS %@ (title содержит searchBar.text!) (https://static.realm.io/downloads/files/NSPredicateCheatsheet.pdf тут есть подробнее про разные знаки, типа CONTAINS %@) [cd] используется, чтобы включить и маленькие и заглавные буквы
+//
+//        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+//
+//        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+//
+//        loadItems(with: request)
+//    }
+    
+    
+    // Запускает сортировку при каждом изменении текста в searchBar
+    
+    func searchBar(_ searchBar: UISearchBar, textDidChange searchText: String) {
         
+        if searchBar.text?.count == 0 {
+            loadItems()
+            //запускаем в главной очереди
+            DispatchQueue.main.async {
+                //Используем, чтобы скрыть клавиатуру и убрать курсор с searchBar (этот метод намного глубже, чем я понял)
+                searchBar.resignFirstResponder()
+            }
+        } else {
+            let request: NSFetchRequest<Item> = Item.fetchRequest()
+            
+            //title CONTAINS %@ (title содержит searchBar.text!) (https://static.realm.io/downloads/files/NSPredicateCheatsheet.pdf тут есть подробнее про разные знаки, типа CONTAINS %@) [cd] используется, чтобы включить и маленькие и заглавные буквы
+            
+            request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+            request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+            self.loadItems(with: request)
+        }
     }
 }
 
