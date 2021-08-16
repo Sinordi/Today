@@ -6,7 +6,6 @@
 //
 
 
-//aaaaàäæ
 
 import UIKit
 import CoreData
@@ -14,10 +13,16 @@ import CoreData
 
 class TodoListViewController: UITableViewController {
     
+    var itemArray = [Item]()
+    
+    var selectedCategories : Categories? {
+        didSet {
+            loadItems()
+        }
+    }
+    
     //CoreData создаем context. (UIApplication.shared.delegate as! AppDelegate) - тут мы получаем доступ к AppDelegate
     let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
-    
-    var itemArray = [Item]()
     
     
     override func viewDidLoad() {
@@ -25,7 +30,7 @@ class TodoListViewController: UITableViewController {
         
         
         //Метод загрузки данных с нашего сохраненного файла
-        loadItems()
+        
     }
     
     
@@ -51,8 +56,6 @@ class TodoListViewController: UITableViewController {
         let item = itemArray[indexPath.row]
         cell.textLabel?.text = item.title
         
-        
-        
         // Для того, чтобы поставить галочку (chekmark) при нажатии и убрать, если она была.
         
         /*
@@ -61,9 +64,6 @@ class TodoListViewController: UITableViewController {
          */
         
         cell.accessoryType = item.done ? .checkmark : .none
-        
-        
-        
         return cell
     }
     
@@ -87,7 +87,7 @@ class TodoListViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         
-        tableView.deselectRow(at: indexPath, animated: true)
+        
         
         //Меняет состояние done (используется для галочки (chekmark))
         itemArray[indexPath.row].done = !itemArray[indexPath.row].done
@@ -95,8 +95,10 @@ class TodoListViewController: UITableViewController {
         //Здесь этот метод вызываем, чтобы обновить данные о галочке и нашем файле
         saveItems()
         
+        tableView.deselectRow(at: indexPath, animated: true)
+        
         //обновляет таблицу после того, как поменяли состояние done
-        tableView.reloadData()
+//        tableView.reloadData()
         
     }
     
@@ -120,16 +122,12 @@ class TodoListViewController: UITableViewController {
                 
                 newItem.title = safeText
                 newItem.done = false //Это добавили, когда начали использовать CoreData, т.к. в файле нет начального значения (и это сво-во у нас не optional)
+                
+                newItem.parentCategory = self.selectedCategories
                 self.itemArray.append(newItem)
                 self.saveItems() //Вызываем метод для сохранения данных
-                
             }
-            
-            
         }
-        
-        
-        
         
         alert.addAction(cancel) //Добавляет кнопку действия к алерту
         alert.addAction(action)
@@ -137,9 +135,7 @@ class TodoListViewController: UITableViewController {
             alertTextField.placeholder = "Создайте новую заметку" //Добавляет серый текст в текстовом поле
             textField = alertTextField
         }
-        
-        
-        
+
         present(alert, animated: true) {
             
         }
@@ -161,8 +157,15 @@ class TodoListViewController: UITableViewController {
     }
     
     //(with request: NSFetchRequest<Item> = Item.fetchRequest()) -  если у нас в качестве аргумента нет ничего, при вызове функции, то используется Item.fetchRequest() (то, что стоит после =)
-    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest()) {
+    func loadItems(with request: NSFetchRequest<Item> = Item.fetchRequest(), predicate: NSPredicate? = nil) {
         
+        let categoryPredicate = NSPredicate(format: "parentCategory.name MATCHES %@", selectedCategories!.name!)
+        
+        if let addtionalPredicate = predicate {
+            request.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [categoryPredicate, addtionalPredicate])
+        } else {
+            request.predicate = categoryPredicate
+        }
         
         
         do {
@@ -182,20 +185,20 @@ class TodoListViewController: UITableViewController {
 extension TodoListViewController:  UISearchBarDelegate {
     
     
-// Запускает сортировку, при нажатии на кнопку поиск на клавиатуре
+    // Запускает сортировку, при нажатии на кнопку поиск на клавиатуре
     
-//    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
-//
-//        let request: NSFetchRequest<Item> = Item.fetchRequest()
-//
-//        //title CONTAINS %@ (title содержит searchBar.text!) (https://static.realm.io/downloads/files/NSPredicateCheatsheet.pdf тут есть подробнее про разные знаки, типа CONTAINS %@) [cd] используется, чтобы включить и маленькие и заглавные буквы
-//
-//        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
-//
-//        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-//
-//        loadItems(with: request)
-//    }
+    //    func searchBarSearchButtonClicked(_ searchBar: UISearchBar) {
+    //
+    //        let request: NSFetchRequest<Item> = Item.fetchRequest()
+    //
+    //        //title CONTAINS %@ (title содержит searchBar.text!) (https://static.realm.io/downloads/files/NSPredicateCheatsheet.pdf тут есть подробнее про разные знаки, типа CONTAINS %@) [cd] используется, чтобы включить и маленькие и заглавные буквы
+    //
+    //        request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+    //
+    //        request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
+    //
+    //        loadItems(with: request)
+    //    }
     
     
     // Запускает сортировку при каждом изменении текста в searchBar
@@ -214,9 +217,9 @@ extension TodoListViewController:  UISearchBarDelegate {
             
             //title CONTAINS %@ (title содержит searchBar.text!) (https://static.realm.io/downloads/files/NSPredicateCheatsheet.pdf тут есть подробнее про разные знаки, типа CONTAINS %@) [cd] используется, чтобы включить и маленькие и заглавные буквы
             
-            request.predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
+            let predicate = NSPredicate(format: "title CONTAINS[cd] %@", searchBar.text!)
             request.sortDescriptors = [NSSortDescriptor(key: "title", ascending: true)]
-            self.loadItems(with: request)
+            self.loadItems(with: request, predicate: predicate)
         }
     }
 }
